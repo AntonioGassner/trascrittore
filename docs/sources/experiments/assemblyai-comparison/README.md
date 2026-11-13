@@ -26,6 +26,10 @@ command takes as `--trial-dir` and refuses when it is inside the repository:
 |---|---|
 | `trial-set.json` | the list of recordings; its form is at the top of `trial_set.py` |
 | `key-terms/` | the key terms of the second run, one file per recording, one term per line |
+| `curated/` | for a recording that several curated transcripts cover, those transcripts joined in one file, one after the other |
+| `trascrittore.ini` | this PC's folders for the transcriber's run; every other setting stays the default |
+| `models/` | the models the transcriber downloads on first use, when this folder exists |
+| `work/`, `cache/` | the transcriber's working files and voiceprint cache, where `trascrittore.ini` puts them |
 | `sound/` | the mono sound files that are uploaded |
 | `transcriber/<id>/` | the transcriber's transcripts of today |
 | `assemblyai/plain/`, `assemblyai/terms/` | AssemblyAI's answers as they arrived, their state and their transcripts |
@@ -39,6 +43,14 @@ command takes as `--trial-dir` and refuses when it is inside the repository:
   `.env`, beside the Hugging Face token. No command prints the key.
 - The checkout holds the transcriber as it is on `main`: this branch adds only
   this folder.
+- The transcriber runs outside its image, where its default settings name
+  folders that do not exist. So the trial's folder holds a `trascrittore.ini`
+  with the voice library of this PC, the folders of `[paths_output]` and
+  `cache_dir`, and nothing else; `transcribe` hands it to the transcriber.
+  Transcribing only reads the voice library.
+- The transcriber downloads its models on first use, with the Hugging Face
+  token of `.env`. When the trial's folder has a `models` folder they are kept
+  there, and not in the user's profile.
 - The trial needs no dependency beyond the transcriber's own: the calls to
   AssemblyAI use Python's standard library.
 
@@ -53,8 +65,10 @@ Each step is one command, here with `check`:
 1. **Propose the trial set.** The agent writes `trial-set.json` with every
    eligible recording, `"approved": false` and `"approved_on": null`, and the
    key terms of each: the names of the folders in the voice library and the
-   terms of the client's glossary, as they stand. `check` lists what is wrong,
-   then the recordings with their length and the list price.
+   terms of the client's glossary, as they stand. A recording that several
+   curated transcripts cover gets them joined in `curated/`; the transcripts
+   themselves do not change. `check` lists what is wrong, then the recordings
+   with their length and the list price.
 2. **Approval.** The agent shows the maintainer that list and
    [what AssemblyAI keeps](#what-assemblyai-keeps). The maintainer strikes what
    must not leave the PC. Only then the agent sets `"approved": true` on the

@@ -8,6 +8,7 @@ or paying twice, and writes every attempt, failed ones included, to the trial's 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -23,6 +24,7 @@ from assemblyai_trial.scorer import score
 from assemblyai_trial.transcript_form import to_transcript
 from assemblyai_trial.trial_set import REPOSITORY, Recording, TrialError, TrialSet
 from assemblyai_trial.words import CuratedError, transcript_tokens
+from src.settings import SETTINGS_ENV
 from src.transcriber.summary import say
 from src.transcriber.transcript import TRANSCRIPT_SUFFIX
 
@@ -31,6 +33,9 @@ PLAIN, TERMS = "plain", "terms"
 RUNS = {PLAIN: ASSEMBLYAI, TERMS: ASSEMBLYAI_TERMS}
 # The transcriber works on a 16 kHz mono copy of the recording, and AssemblyAI converts what it gets to 16 kHz.
 _SOUND_RATE = 16000
+# In the trial's folder: this PC's folders for the transcriber, and the models it downloads on first use.
+SETTINGS_NAME = "trascrittore.ini"
+MODELS_NAME = "models"
 _FAILURES = (TrialError, CuratedError, OSError, subprocess.CalledProcessError, ValueError, KeyError)
 
 
@@ -109,6 +114,23 @@ def transcriber_commits(trial: TrialSet) -> list[str]:
     return sorted({event["detail"] for event in events(trial) if event["step"] == TRANSCRIBER and event["ok"]})
 
 
+def transcriber_environment(trial: TrialSet) -> dict[str, str]:
+    """
+    Return the environment the transcriber runs in outside its image.
+
+    Its default settings name folders of the image, so the trial's folder may hold a
+    `trascrittore.ini` with this PC's folders, and a `models` folder for the models to be kept in.
+    """
+    environment = dict(os.environ)
+    settings = trial.folder / SETTINGS_NAME
+    if settings.is_file():
+        environment[SETTINGS_ENV] = str(settings)
+    models = trial.folder / MODELS_NAME
+    if models.is_dir():
+        environment.update(HF_HOME=str(models / "huggingface"), TORCH_HOME=str(models / "torch"))
+    return environment
+
+
 def _transcribe(trial: TrialSet, recording: Recording) -> None:
     """
     Transcribe a recording through the transcriber's own command line, with its settings as they
@@ -119,6 +141,7 @@ def _transcribe(trial: TrialSet, recording: Recording) -> None:
     run = subprocess.run(
         [sys.executable, "-m", "src.transcriber", "transcribe", str(recording.file), "--out-dir", str(out_dir)],
         cwd=REPOSITORY,
+        env=transcriber_environment(trial),
         stdout=subprocess.PIPE,
         text=True,
         encoding="utf-8",

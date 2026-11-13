@@ -33,12 +33,14 @@ def _check(trial: TrialSet, args: argparse.Namespace) -> None:
         approval = "approved" if recording.approved else "NOT approved, stays on the PC"
         print(f"{recording.id}  {recording.kind:<9}  {recording.duration_sec() / 3600:5.2f} h  {approval}  {recording.file}")
     approved = [recording for recording in trial.recordings if recording.approved]
-    hours = sum(recording.duration_sec() for recording in approved) / 3600
-    print(
-        f"\n{len(approved)} approved recordings, {sum(recording.kind == IN_PERSON for recording in approved)} in person, "
-        f"{hours:.1f} hours. At list prices: ${list_price(hours, key_terms=False):.2f} for the plain run, "
-        f"${list_price(hours, key_terms=True):.2f} for the run with key terms."
-    )
+    print()
+    for what, chosen in (("listed", trial.recordings), ("approved", approved)):
+        hours = sum(recording.duration_sec() for recording in chosen) / 3600
+        print(
+            f"{len(chosen)} {what} recordings, {sum(recording.kind == IN_PERSON for recording in chosen)} in person, "
+            f"{hours:.1f} hours. At list prices: ${list_price(hours, key_terms=False):.2f} for the plain run, "
+            f"${list_price(hours, key_terms=True):.2f} for the run with key terms."
+        )
     print(f"Approved on: {trial.approved_on or 'not yet'}")
 
 
